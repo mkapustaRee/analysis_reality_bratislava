@@ -102,9 +102,73 @@ agm <- broom::augment(model)
 
 df_prediction <- predict.lm(object = model,newdata = df_predict)
 
-ggplot(data = df_predict, aes(df_predict$Cena, df_prediction)) +
+
+
+
+# create charts -----------------------------------------------------------
+
+
+chart_forecast_vs_actual <- ggplot(data = df_predict, aes(df_predict$Cena, df_prediction)) +
+        labs(title = "Testing the linear model on test dataset",
+             subtitle = "train = 80%, test = 20 % of sample",
+             x = "Actual price", y = "Forecasted price") + 
         geom_point() +
         scale_x_continuous(labels = scales::comma)  +
         scale_y_continuous(labels = scales::comma) + 
-        geom_smooth(method = "lm",se = F)
+        geom_smooth(method = "lm",se = F) +
+        theme_minimal(base_family = "Georgia")
+
+
+chart_lm_by_rooms <-agm %>%  
+        ggplot(aes(.fitted,Cena)) +
+        geom_point(alpha = .3,show.legend = F) +
+        theme_minimal(base_family = "Georgia") +
+        scale_x_continuous(labels = scales::dollar_format(prefix = "€"))+
+        scale_y_continuous(labels = scales::dollar_format(prefix = "€")) +
+        labs(title = "Regression model of flats in the Bratislava") +
+        geom_smooth(se = F,show.legend = F) + 
+        facet_wrap(~Kategória,scales = "free")
+
+
+chart_lm_by_Lokalita <-agm %>%  
+        ggplot(aes(.fitted,Cena)) +
+        geom_point(alpha = .3,show.legend = F) +
+        theme_minimal(base_family = "Georgia") +
+        scale_x_continuous(labels = scales::dollar_format(prefix = "€"))+
+        scale_y_continuous(labels = scales::dollar_format(prefix = "€")) +
+        labs(title = "Regression model of flats in the Bratislava") +
+        geom_smooth(se = F,method = "glm",show.legend = F) + 
+        facet_wrap(~Lokalita,scales = "free")
+
+
+ggsave(plot = chart_lm_by_Lokalita,"chart_by_location.jpeg",device = "jpeg",path = "_pics/")
+ggsave(plot = chart_lm_by_rooms,"chart_by_size.jpeg",device = "jpeg",path = "_pics/")
+ggsave(plot = chart_forecast_vs_actual,"chart_model.jpeg",device = "jpeg",path = "_pics/")
+
+
+# create stats -----------------------------------------------------------
+
+df_summary_perStreet_District <- agm %>%
+        group_by(Kategória,Lokalita) %>%
+        summarize(count = n(),
+                  mean = round(median(Cena),0),
+                  model_mean = round(mean(.fitted),0),
+                  sd = round(sd(Cena),0),
+                  min = round(min(Cena),0),
+                  max = round(max(Cena),0),
+                  dif = round(mean - model_mean,0)) %>% 
+        arrange(dif) %>% 
+        modify_at(c("mean","model_mean","sd","min","max","diff"), scales::dollar_format("€"))
+
+
+df_summary_perDistrict <- df_ads %>%
+        group_by(Lokalita) %>%
+        summarize(count = n(),
+                  mean = mean(Cena),
+                  sd =   sd(Cena),
+                  min = min(Cena),
+                  max = max(Cena)) %>% 
+        modify_at(c("mean","min","max","sd"), scales::dollar_format("€"))
+
+
 
